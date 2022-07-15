@@ -1,0 +1,115 @@
+This is to build Debian Buster lxde sdcard image for following SBC's:
+rpi4b  ( Raspberry Pi 4B )
+radxa  ( Rock Pi 4B plus )
+rk3328 ( Renegade ROC-RK3328-CC )
+tinker ( ASUS TinkerBoard )
+
+Steps to build Debian Buster lxde sdcard image:
+
+1. git clone https://github.com/chenphilip888/build-buster-lxde.git
+   sudo apt-get install build-essential git libssl-dev nmap net-tools libncurses5-dev libncursesw5-dev dnsutils vsftpd ftp binfmt-support qemu-user-static scons libncurses5-dev libncursesw5-dev libdbus-glib-1-dev libbluetooth-dev python-dev python-setuptools python3-dev python3-pip python3-setuptools libcurl4-openssl-dev gettext dbus-x11 chrpath diffstat gawk texinfo curl flex bison device-tree-compiler python swig
+
+2. Install cross compiler and live-build:
+   wget https://releases.linaro.org/components/toolchain/binaries/7.3-2018.05/aarch64-linux-gnu/gcc-linaro-7.3.1-2018.05-x86_64_aarch64-linux-gnu.tar.xz
+   sudo tar xvf gcc-linaro-7.3.1-2018.05-x86_64_aarch64-linux-gnu.tar.xz  -C /usr/local/
+   wget https://releases.linaro.org/components/toolchain/binaries/7.3-2018.05/arm-linux-gnueabihf/gcc-linaro-7.3.1-2018.05-x86_64_arm-linux-gnueabihf.tar.xz
+   sudo tar xvf gcc-linaro-7.3.1-2018.05-x86_64_arm-linux-gnueabihf.tar.xz -C /usr/local/
+   sudo apt-get install debootstrap debhelper kpartx gdisk devscripts dh-systemd isolinux po4a
+   wget https://launchpad.net/debian/+archive/primary/+sourcefiles/live-build/1:20210407/live-build_20210407.tar.xz
+   tar xvf live-build_20210407.tar.xz
+   cd live-build
+   sudo make install
+
+3. cd ~/build-buster-lxde/rpi4b
+   git clone https://github.com/raspberrypi/linux --depth=1 -b rpi-5.4.y
+   cd linux; mkdir tmp; cd tmp; mkdir lib;
+   cd ../../; mkdir out;
+
+   make all
+   The result is in ./out/sdcard.img
+   make cleanall
+
+   sudo dd if=./out/sdcard.img of=/dev/mmcblk0 bs=4096 conv=notrunc,fsync
+
+4. cd ~/build-buster-lxde/radxa
+   git clone https://github.com/radxa/u-boot --depth=1 -b stable-4.4-rockpi4
+   git clone https://github.com/radxa/kernel --depth=1 -b release-4.4-rockpi4
+   cd kernel; mkdir tmp; cd tmp; mkdir lib;
+   cd ../../; mkdir out;
+
+   make all
+   The result is in ./out/sdcard.img
+   make cleanall
+
+   sudo dd if=./out/sdcard.img of=/dev/mmcblk0 bs=4096 conv=notrunc,fsync
+
+5. cd ~/build-buster-lxde/rk3328
+   git clone https://github.com/u-boot/u-boot
+   git clone https://github.com/FireflyTeam/kernel --depth=1 -b rk3328/firefly
+   cd kernel; mkdir tmp; cd tmp; mkdir lib;
+   cd ../../; mkdir out;
+
+   make all
+   The result is in ./out/sdcard.img
+   make cleanall
+
+   sudo dd if=./out/sdcard.img of=/dev/mmcblk0 bs=4096 conv=notrunc,fsync
+
+6. cd ~/build-buster-lxde/tinker
+   git clone https://github.com/TinkerBoard/debian_u-boot.git --depth=1 -b release
+   git clone https://github.com/TinkerBoard/debian_kernel.git --depth=1 -b release
+   cd debian_kernel; mkdir tmp; cd tmp; mkdir lib;
+   cd ../../; mkdir out;
+
+   make all
+   The result is in ./out/sdcard.img
+   make cleanall
+
+   sudo dd if=./out/sdcard.img of=/dev/mmcblk0 bs=4096 conv=notrunc,fsync
+
+Plugin sdcard to SBC
+Login:
+Username: linaro
+Password: linaro
+uname -a
+lsb_release -a
+Setup wifi for rk3328: plugin usb wifi dongle
+sudo ifconfig
+sudo dpkg-reconfigure tzdata
+sudo dpkg-reconfigure locales
+sudo apt update
+sudo apt upgrade
+sync
+sudo reboot
+glxinfo | grep OpenGL
+date
+git clone https://github.com/glmark2/glmark2.git -b release-2020.04
+cd glmark2
+./waf configure --with-flavors=x11-glesv2
+./waf
+sudo ./waf install
+glmark2-es2
+
+For rpi4b, install mesa and drm in buster:
+sudo apt-get remove meson
+sudo pip3 install meson mako setuptools
+sudo vi /etc/apt/sources.list.d/raspi.list ( add deb-src http://archive.raspberrypi.org/debian/ buster main)
+sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 7FA3303E
+sudo apt-get update
+sudo apt-get build-dep mesa -y  ( ignore errors )
+sudo vi /etc/apt/sources.list.d/raspi.list ( comment out first line )
+git clone --depth=1 -b mesa-19.3.2 https://gitlab.freedesktop.org/mesa/mesa/
+cd mesa; mkdir build; cd build;
+sudo apt-get install libxcb-randr0-dev libxrandr-dev libxcb-xinerama0-dev libxinerama-dev libxcursor-dev libxcb-cursor-dev libxkbcommon-dev xutils-dev xutils-dev libpthread-stubs0-dev libpciaccess-dev libffi-dev x11proto-xext-dev libxcb1-dev bison flex libssl-dev libgnutls28-dev x11proto-dri2-dev x11proto-dri3-dev libx11-dev libxcb-glx0-dev libx11-xcb-dev libxext-dev libxdamage-dev libxfixes-dev libva-dev x11proto-randr-dev x11proto-present-dev libclc-dev libelf-dev git build-essential mesa-utils libvulkan-dev ninja-build libvulkan1 python-mako libdrm-dev libxshmfence-dev libxxf86vm-dev libunwind-dev vulkan-tools vulkan-utils ninja-build libxcb-*dev wayland-protocols libwayland-egl-backend-dev gettext
+
+sudo meson --prefix="/usr" ..
+sudo ninja install
+cd ~/
+git clone --depth=1 https://gitlab.freedesktop.org/mesa/drm
+cd drm; mkdir build; cd build;
+sudo meson --prefix="/usr" ..
+sudo ninja install
+sudo reboot
+glxinfo |grep OpenGL
+glmark2-es2
+
